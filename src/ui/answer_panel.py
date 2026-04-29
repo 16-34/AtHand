@@ -72,10 +72,13 @@ body {{
     background: rgba(255,255,255,0.06);
 }}
 .user-msg {{
-    font-weight: bold;
-    color: {accent};
-    margin: 14px 0 4px 0;
-    font-size: 14px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.85);
+    margin: 14px 0 2px 0;
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    padding-left: 10px;
+    border-left: 2px solid rgba(255,255,255,0.3);
 }}
 .user-msg:first-child {{ margin-top: 0; }}
 .status-line {{
@@ -220,7 +223,7 @@ class AnswerPanel(QWidget):
     def add_user_message(self, message: str):
         """在面板中追加用户提问"""
         self._history_parts.append(
-            f'<div class="user-msg">🧑 {self._escape_html(message)}</div>'
+            f'<div class="user-msg">{self._escape_html(message)}</div>'
         )
         self._render_content(scroll=True)
 
