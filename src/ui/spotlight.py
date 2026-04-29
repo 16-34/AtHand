@@ -228,6 +228,8 @@ class SpotlightWindow(QWidget):
             self.answer_panel.setVisible(True)
             self.setFixedHeight(self._expanded_height)
 
+        # 在面板中显示用户问题
+        self.answer_panel.add_user_message(query)
         self.answer_panel.start_streaming()
         self.search_input.setEnabled(False)
 
@@ -239,7 +241,7 @@ class SpotlightWindow(QWidget):
 
     def _on_response_finished(self, full_response: str):
         """回答完成"""
-        self.answer_panel.finish_streaming()
+        self.answer_panel.finish_streaming(full_response)
         self.search_input.setEnabled(True)
         self.search_input.setFocus()
         # 清空输入框，准备下一轮
