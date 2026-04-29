@@ -7,6 +7,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QThread, Signal
 
+from openai import OpenAI, AuthenticationError, APIError
+
 from core.config import load_config, save_config
 from ui.styles import SETTINGS_STYLESheet, COLORS
 
@@ -22,41 +24,27 @@ class ConnectionTestWorker(QThread):
 
     def run(self):
         try:
-            import litellm
-        except ImportError:
-            self.finished.emit(False, "litellm 未安装")
-            return
-
-        try:
             api_key = self.config.get("api_key", "")
-            api_base = self.config.get("api_base", "")
+            api_base = self.config.get("api_base", "https://api.openai.com/v1")
             model = self.config.get("model", "gpt-4o-mini")
 
             if not api_key:
                 self.finished.emit(False, "请填写 API Key")
                 return
 
-            # 自定义 api_base 时需要 openai/ 前缀让 litellm 识别
-            actual_model = model
-            if api_base and api_base != "https://api.openai.com/v1":
-                if not model.startswith("openai/"):
-                    actual_model = f"openai/{model}"
-
-            kwargs = {
-                "model": actual_model,
-                "messages": [{"role": "user", "content": "Hi"}],
-                "max_tokens": 5,
-                "api_key": api_key,
-                "temperature": 0,
-            }
-            if api_base:
-                kwargs["api_base"] = api_base
-
-            response = litellm.completion(**kwargs)
+            client = OpenAI(api_key=api_key, base_url=api_base)
+            response = client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": "Hi"}],
+                max_tokens=5,
+                temperature=0,
+            )
             content = response.choices[0].message.content or "(空回复)"
             self.finished.emit(True, f"连接成功！模型回复: {content[:50]}")
-        except litellm.AuthenticationError:
+        except AuthenticationError:
             self.finished.emit(False, "认证失败：API Key 无效")
+        except APIError as e:
+            self.finished.emit(False, f"连接失败: {str(e)[:100]}")
         except Exception as e:
             self.finished.emit(False, f"连接失败: {str(e)[:100]}")
 

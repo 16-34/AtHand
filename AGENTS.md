@@ -12,7 +12,7 @@ AtHand 是一个跨平台的全局快捷键唤起 AI 助手，灵感来自 macOS
 | UI 框架 | PySide6 ≥6.6 | 无边框窗口、透明背景、毛玻璃效果 |
 | 全局热键 | pynput ≥1.7.4 | 双击 Shift 检测，macOS 需辅助功能权限 |
 | 系统托盘 | pystray ≥0.19 | 常驻托盘入口 |
-| LLM 调用 | litellm ≥1.0 | OpenAI 兼容端点，流式传输，多轮对话 |
+| LLM 调用 | openai ≥1.0 | OpenAI 兼容端点，流式传输，多轮对话 |
 | Markdown | QMarkdownWidget | 回答区域渲染 |
 | 配置 | JSON | `~/.athand/config.json` |
 | 打包 | PyInstaller ≥6.0 | macOS .app / Windows .exe / Linux AppImage |
