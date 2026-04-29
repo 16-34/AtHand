@@ -42,6 +42,14 @@ def main():
     app.setApplicationName("AtHand")
     app.setApplicationDisplayName("AtHand")
 
+    # macOS: 让应用成为前台进程，确保 Tool 窗口能正常显示
+    if sys.platform == "darwin":
+        try:
+            from AppKit import NSApp
+            NSApp.setActivationPolicy_(0)  # NSApplicationActivationPolicyRegular
+        except ImportError:
+            pass
+
     # 加载配置
     config = load_config()
 

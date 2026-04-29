@@ -1,18 +1,20 @@
 """主浮动窗口：Spotlight 风格搜索栏 + 回答面板"""
 
+import sys
+
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,
     QSizePolicy, QApplication, QLabel,
 )
-from PySide6.QtCore import Qt, Signal, QTimer, QPropertyAnimation, QEasingCurve
-from PySide6.QtGui import QKeyEvent, QIcon, QFont
+from PySide6.QtCore import Qt, Signal, QTimer
+from PySide6.QtGui import QKeyEvent, QFont
 
 from ui.answer_panel import AnswerPanel
 from ui.settings_dialog import SettingsDialog
 from ui.styles import (
     SPOTLIGHT_STYLESheet, SETTINGS_BTN_STYLE,
     WINDOW_WIDTH, SEARCH_BAR_HEIGHT, ANSWER_PANEL_MAX_HEIGHT,
-    COLORS,
+    MARGIN, COLORS,
 )
 from core.config import load_config, save_config
 from core.llm import ChatSession
@@ -54,10 +56,14 @@ class SpotlightWindow(QWidget):
         )
         # 透明背景（毛玻璃效果的基础）
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        
+
+        # 搜索态高度 = 搜索栏高度 + 上下边距
+        self._collapsed_height = SEARCH_BAR_HEIGHT + MARGIN * 2
+        # 回答态高度
+        self._expanded_height = SEARCH_BAR_HEIGHT + ANSWER_PANEL_MAX_HEIGHT + MARGIN * 2
 
         self.setFixedWidth(WINDOW_WIDTH)
-        self.setFixedHeight(SEARCH_BAR_HEIGHT)
+        self.setFixedHeight(self._collapsed_height)
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
     def _setup_ui(self):
@@ -141,15 +147,32 @@ class SpotlightWindow(QWidget):
     # ---- 公共方法 ----
 
     def toggle_visibility(self):
-        """切换窗口显示/隐藏"""
+        """热键切换：可见则隐藏，不可见则显示"""
         if self.isVisible():
             self.hide_window()
         else:
             self.show_window()
 
+    def bring_to_front(self):
+        """始终将窗口置于前台（用于托盘菜单）"""
+        self.show_window()
+
     def show_window(self):
         """显示窗口"""
         self._is_visible = True
+        # macOS: 必须先将应用置于前台，否则 Tool 窗口不会显示
+        if sys.platform == "darwin":
+            try:
+                from AppKit import NSApp
+                NSApp.activateIgnoringOtherApps_(True)
+            except ImportError:
+                pass
+        # 延迟显示，等待应用激活完成后再 show
+        # macOS 的 activate 是异步的，同一帧内 show 会被系统忽略
+        QTimer.singleShot(50, self._do_show)
+
+    def _do_show(self):
+        """实际执行窗口显示"""
         self._center_on_screen()
         self.show()
         self.raise_()
@@ -165,7 +188,7 @@ class SpotlightWindow(QWidget):
         self.answer_panel.setVisible(False)
         self._answer_expanded = False
         self.search_input.clear()
-        self.setFixedHeight(SEARCH_BAR_HEIGHT + 16)  # 16 = 上下边距
+        self.setFixedHeight(self._collapsed_height)
         self.hide()
 
     def show_settings(self):
@@ -191,7 +214,7 @@ class SpotlightWindow(QWidget):
         if not self._answer_expanded:
             self._answer_expanded = True
             self.answer_panel.setVisible(True)
-            self.setFixedHeight(SEARCH_BAR_HEIGHT + ANSWER_PANEL_MAX_HEIGHT + 16)
+            self.setFixedHeight(self._expanded_height)
 
         self.answer_panel.start_streaming()
         self.search_input.setEnabled(False)

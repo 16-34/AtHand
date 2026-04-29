@@ -53,7 +53,7 @@ class SystemTray:
         menu = QMenu()
 
         show_action = menu.addAction("显示搜索栏")
-        show_action.triggered.connect(self._toggle_spotlight)
+        show_action.triggered.connect(self._show_spotlight)
 
         menu.addSeparator()
 
@@ -73,11 +73,11 @@ class SystemTray:
     def _on_activated(self, reason):
         """托盘图标激活回调"""
         if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
-            self._toggle_spotlight()
+            self._show_spotlight()
 
-    def _toggle_spotlight(self):
-        """切换搜索栏显示"""
-        self.spotlight.toggle_visibility()
+    def _show_spotlight(self):
+        """显示搜索栏（始终置于前台）"""
+        self.spotlight.bring_to_front()
 
     def _open_settings(self):
         """打开设置界面"""
