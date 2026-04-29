@@ -1,0 +1,9 @@
+{
+  "api_key": "",
+  "api_base": "https://api.openai.com/v1",
+  "model": "gpt-4o-mini",
+  "max_tokens": 4096,
+  "temperature": 0.7,
+  "hotkey": "double_shift",
+  "theme": "dark"
+}
