@@ -4,26 +4,42 @@ import sys
 from pathlib import Path
 
 from PySide6.QtWidgets import QSystemTrayIcon, QMenu, QApplication
-from PySide6.QtGui import QIcon, QPixmap, QPainter, QColor
+from PySide6.QtGui import QIcon, QPixmap, QPainter, QColor, QFont, QPen, QBrush
+from PySide6.QtCore import Qt, QRectF
 
 
 def _create_default_icon() -> QIcon:
-    """生成默认托盘图标（蓝色圆形）"""
-    pixmap = QPixmap(64, 64)
+    """生成简约托盘图标：深灰圆角方块 + 白色上箭头"""
+    size = 64
+    pixmap = QPixmap(size, size)
     pixmap.fill(QColor(0, 0, 0, 0))
-    painter = QPainter(pixmap)
-    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-    painter.setBrush(QColor(52, 152, 219))
-    painter.setPen(QColor(0, 0, 0, 0))
-    painter.drawEllipse(4, 4, 56, 56)
-    # 绘制 A 字母
-    painter.setPen(QColor(255, 255, 255))
-    font = painter.font()
-    font.setPixelSize(36)
-    font.setBold(True)
-    painter.setFont(font)
-    painter.drawText(pixmap.rect(), 0x0084, "A")  # Qt.AlignCenter
-    painter.end()
+
+    p = QPainter(pixmap)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+    # 圆角方块背景
+    rect = QRectF(4, 4, 56, 56)
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(QColor("#1a1a1a"))
+    p.drawRoundedRect(rect, 14, 14)
+
+    # 白色上箭头（代表"唤起"）
+    pen = QPen(QColor("#ffffff"), 3, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+
+    # 箭头竖线
+    p.drawLine(32, 48, 32, 22)
+    # 箭头头部
+    p.drawLine(22, 30, 32, 20)
+    p.drawLine(42, 30, 32, 20)
+
+    # 底部装饰线
+    pen2 = QPen(QColor(255, 255, 255, 100), 2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
+    p.setPen(pen2)
+    p.drawLine(24, 52, 40, 52)
+
+    p.end()
     return QIcon(pixmap)
 
 
@@ -39,10 +55,10 @@ class SystemTray:
         self._build_menu()
 
     def _load_icon(self) -> QIcon:
-        """尝试加载图标文件，失败则使用默认图标"""
-        # 尝试从资源目录加载
+        """尝试加载图标文件，失败则使用代码生成的图标"""
         resource_dir = Path(__file__).parent.parent / "resources"
-        for name in ("icon.png", "icon.icns"):
+        # 优先加载 SVG / PNG
+        for name in ("icon.svg", "icon.png", "icon.icns"):
             icon_path = resource_dir / name
             if icon_path.exists():
                 return QIcon(str(icon_path))
