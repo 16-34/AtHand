@@ -31,8 +31,14 @@ class ConnectionTestWorker(QThread):
                 self.finished.emit(False, "请填写 API Key")
                 return
 
+            # 自定义 api_base 时需要 openai/ 前缀让 litellm 识别
+            actual_model = model
+            if api_base and api_base != "https://api.openai.com/v1":
+                if not model.startswith("openai/"):
+                    actual_model = f"openai/{model}"
+
             kwargs = {
-                "model": model,
+                "model": actual_model,
                 "messages": [{"role": "user", "content": "Hi"}],
                 "max_tokens": 5,
                 "api_key": api_key,
@@ -111,6 +117,8 @@ class SettingsDialog(QDialog):
             "gpt-3.5-turbo",
             "claude-sonnet-4-5-20250929",
             "deepseek/deepseek-chat",
+            "Qwen/Qwen2.5-72B-Instruct",
+            "Qwen/Qwen2.5-7B-Instruct",
         ])
         form.addRow("模型:", self.model_combo)
 

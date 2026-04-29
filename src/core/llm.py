@@ -32,9 +32,15 @@ class LLMWorker(QThread):
                 self.error_occurred.emit("请先在设置中配置 API Key")
                 return
 
-            # litellm 的 api_base 参数
+            # 当使用自定义 api_base 时，litellm 需要通过
+            # "openai/" 前缀识别为 OpenAI 兼容端点
+            actual_model = model
+            if api_base and api_base != "https://api.openai.com/v1":
+                if not model.startswith("openai/"):
+                    actual_model = f"openai/{model}"
+
             kwargs = {
-                "model": model,
+                "model": actual_model,
                 "messages": self.messages,
                 "stream": True,
                 "max_tokens": max_tokens,
@@ -42,7 +48,6 @@ class LLMWorker(QThread):
                 "api_key": api_key,
             }
 
-            # 仅在 api_base 非默认时传入
             if api_base and api_base != "https://api.openai.com/v1":
                 kwargs["api_base"] = api_base
 
