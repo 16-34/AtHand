@@ -91,3 +91,7 @@ class SystemTray:
     def show(self):
         """显示托盘图标"""
         self._tray.show()
+
+    def hide(self):
+        """隐藏托盘图标（退出前清理）"""
+        self._tray.hide()

@@ -2,6 +2,7 @@
 
 import sys
 import os
+import signal
 import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -36,6 +37,24 @@ def acquire_lock():
             return True
     except (OSError, IOError):
         return False
+
+
+def release_lock():
+    """释放单实例锁"""
+    global _lock_fd
+    if _lock_fd:
+        try:
+            if sys.platform != "win32":
+                import fcntl
+                fcntl.flock(_lock_fd, fcntl.LOCK_UN)
+            _lock_fd.close()
+        except Exception:
+            pass
+        _lock_fd = None
+    try:
+        os.unlink(LOCK_FILE)
+    except FileNotFoundError:
+        pass
 
 
 def check_macos_permission():
@@ -104,6 +123,48 @@ def main():
     tray = SystemTray(spotlight, config)
     tray.show()
 
+    # 退出清理：隐藏托盘、停止热键、释放锁
+    def cleanup():
+        tray.hide()
+        hotkey.stop()
+        release_lock()
+
+    app.aboutToQuit.connect(cleanup)
+
+    # 处理终端信号：通过 pipe + QSocketNotifier 实现 Qt 事件循环内的信号投递
+    import signal as _signal
+    import os as _os
+
+    _sig_r, _sig_w = _os.pipe()
+    _os.set_blocking(_sig_r, False)
+    _os.set_blocking(_sig_w, False)
+    _signal.set_wakeup_fd(_sig_w)
+
+    from PySide6.QtCore import QSocketNotifier
+
+    _notifier = QSocketNotifier(_sig_r, QSocketNotifier.Type.Read, app)
+
+    def _on_signal():
+        _os.read(_sig_r, 256)  # 清空管道
+        app.quit()
+
+    _notifier.activated.connect(_on_signal)
+
+    _should_quit = False
+
+    def _handle_term(signum, frame):
+        nonlocal _should_quit
+        if _should_quit:
+            sys.exit(1)
+        _should_quit = True
+
+    _signal.signal(_signal.SIGTERM, _handle_term)
+    _signal.signal(_signal.SIGINT, _handle_term)
+
+    # atexit 作为兜底清理
+    import atexit
+    atexit.register(release_lock)
+
     # 首次启动引导设置
     if not config.get("api_key"):
         from PySide6.QtCore import QTimer
@@ -113,7 +174,6 @@ def main():
         ))
 
     exit_code = app.exec()
-    hotkey.stop()
     sys.exit(exit_code)
 
 
