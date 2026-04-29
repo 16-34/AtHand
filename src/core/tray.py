@@ -8,8 +8,14 @@ from PySide6.QtGui import QIcon, QPixmap, QPainter, QColor, QFont, QPen, QBrush
 from PySide6.QtCore import Qt, QRectF
 
 
-def _create_default_icon() -> QIcon:
-    """生成简约托盘图标：深灰圆角方块 + 白色上箭头"""
+def _create_icon(bg_color: str, fg_color: str, fg_alpha: int = 100) -> QIcon:
+    """生成托盘图标
+
+    Args:
+        bg_color: 圆角方块背景色
+        fg_color: 箭头主色
+        fg_alpha: 装饰线透明度 (0-255)
+    """
     size = 64
     pixmap = QPixmap(size, size)
     pixmap.fill(QColor(0, 0, 0, 0))
@@ -20,27 +26,57 @@ def _create_default_icon() -> QIcon:
     # 圆角方块背景
     rect = QRectF(4, 4, 56, 56)
     p.setPen(Qt.PenStyle.NoPen)
-    p.setBrush(QColor("#1a1a1a"))
+    p.setBrush(QColor(bg_color))
     p.drawRoundedRect(rect, 14, 14)
 
-    # 白色上箭头（代表"唤起"）
-    pen = QPen(QColor("#ffffff"), 3, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+    # 上箭头
+    pen = QPen(
+        QColor(fg_color), 3,
+        Qt.PenStyle.SolidLine,
+        Qt.PenCapStyle.RoundCap,
+        Qt.PenJoinStyle.RoundJoin,
+    )
     p.setPen(pen)
     p.setBrush(Qt.BrushStyle.NoBrush)
 
-    # 箭头竖线
     p.drawLine(32, 48, 32, 22)
-    # 箭头头部
     p.drawLine(22, 30, 32, 20)
     p.drawLine(42, 30, 32, 20)
 
     # 底部装饰线
-    pen2 = QPen(QColor(255, 255, 255, 100), 2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
+    pen2 = QPen(
+        QColor(fg_color).alphaColor() if hasattr(QColor(fg_color), 'alphaColor') else QColor(fg_color),
+        2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap,
+    )
+    pen2.setColor(QColor(int(QColor(fg_color).red()), int(QColor(fg_color).green()), int(QColor(fg_color).blue()), fg_alpha))
     p.setPen(pen2)
     p.drawLine(24, 52, 40, 52)
 
     p.end()
     return QIcon(pixmap)
+
+
+def _create_dark_icon() -> QIcon:
+    """暗色模式图标：深色背景 + 白色箭头"""
+    return _create_icon(bg_color="#1a1a1a", fg_color="#ffffff", fg_alpha=100)
+
+
+def _create_light_icon() -> QIcon:
+    """亮色模式图标：浅色背景 + 深色箭头"""
+    return _create_icon(bg_color="#e0e0e0", fg_color="#1a1a1a", fg_alpha=80)
+
+
+def _is_dark_mode() -> bool:
+    """检测系统是否为暗色模式"""
+    try:
+        app = QApplication.instance()
+        if app:
+            scheme = app.styleHints().colorScheme()
+            return scheme == Qt.ColorScheme.Dark
+    except Exception:
+        pass
+    # 默认暗色
+    return True
 
 
 class SystemTray:
@@ -55,14 +91,18 @@ class SystemTray:
         self._build_menu()
 
     def _load_icon(self) -> QIcon:
-        """尝试加载图标文件，失败则使用代码生成的图标"""
+        """优先加载自定义图标文件，否则根据系统主题生成"""
         resource_dir = Path(__file__).parent.parent / "resources"
-        # 优先加载 SVG / PNG
         for name in ("icon.svg", "icon.png", "icon.icns"):
             icon_path = resource_dir / name
             if icon_path.exists():
                 return QIcon(str(icon_path))
-        return _create_default_icon()
+
+        # 根据系统主题生成对应图标
+        if _is_dark_mode():
+            return _create_dark_icon()
+        else:
+            return _create_light_icon()
 
     def _build_menu(self):
         """构建托盘菜单"""
