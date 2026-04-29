@@ -1,9 +1,6 @@
 """LLM 调用模块：litellm 流式调用 + 多轮对话管理"""
 
-from collections import deque
-
 from PySide6.QtCore import QObject, Signal, QThread
-import litellm
 
 
 class LLMWorker(QThread):
@@ -20,7 +17,13 @@ class LLMWorker(QThread):
         self._full_response = ""
 
     def run(self):
-        """在后台线程中执行流式调用"""
+        """在后台线程中执行流式调用（延迟导入 litellm 避免启动慢）"""
+        try:
+            import litellm
+        except ImportError:
+            self.error_occurred.emit("litellm 未安装，请运行 pip install litellm")
+            return
+
         try:
             api_key = self.config.get("api_key", "")
             api_base = self.config.get("api_base", "https://api.openai.com/v1")
@@ -32,8 +35,7 @@ class LLMWorker(QThread):
                 self.error_occurred.emit("请先在设置中配置 API Key")
                 return
 
-            # 当使用自定义 api_base 时，litellm 需要通过
-            # "openai/" 前缀识别为 OpenAI 兼容端点
+            # 自定义 api_base 时需要 openai/ 前缀让 litellm 识别
             actual_model = model
             if api_base and api_base != "https://api.openai.com/v1":
                 if not model.startswith("openai/"):

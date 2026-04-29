@@ -2,17 +2,40 @@
 
 import sys
 import os
+import tempfile
 
-from PySide6.QtWidgets import QApplication, QMessageBox
-from PySide6.QtCore import Qt
-
-# 确保 src 目录在模块搜索路径中
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from core.config import load_config
 from core.hotkey import HotkeyManager
 from core.tray import SystemTray
 from ui.spotlight import SpotlightWindow
+
+
+LOCK_FILE = os.path.join(tempfile.gettempdir(), "athand.lock")
+_lock_fd = None
+
+
+def acquire_lock():
+    """单实例锁：如果已有实例运行则返回 False"""
+    global _lock_fd
+    try:
+        if sys.platform == "win32":
+            import msvcrt
+            _lock_fd = open(LOCK_FILE, "w")
+            _lock_fd.write(str(os.getpid()))
+            _lock_fd.flush()
+            msvcrt.locking(_lock_fd.fileno(), msvcrt.LK_NBLCK, 1)
+            return True
+        else:
+            import fcntl
+            _lock_fd = open(LOCK_FILE, "w")
+            fcntl.flock(_lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            _lock_fd.write(str(os.getpid()))
+            _lock_fd.flush()
+            return True
+    except (OSError, IOError):
+        return False
 
 
 def check_macos_permission():
@@ -22,7 +45,6 @@ def check_macos_permission():
 
     try:
         from pynput import keyboard
-        # 尝试创建一个 listener 来检测权限
         test_listener = keyboard.Listener(on_press=lambda k: None)
         test_listener.start()
         test_listener.stop()
@@ -32,13 +54,21 @@ def check_macos_permission():
 
 
 def main():
+    # 单实例检测
+    if not acquire_lock():
+        print("AtHand 已在运行中")
+        sys.exit(0)
+
+    from PySide6.QtWidgets import QApplication, QMessageBox
+    from PySide6.QtCore import Qt
+
     # 高 DPI 缩放
     QApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )
 
     app = QApplication(sys.argv)
-    app.setQuitOnLastWindowClosed(False)  # 关闭窗口不退出
+    app.setQuitOnLastWindowClosed(False)
     app.setApplicationName("AtHand")
     app.setApplicationDisplayName("AtHand")
 
@@ -46,14 +76,11 @@ def main():
     if sys.platform == "darwin":
         try:
             from AppKit import NSApp
-            NSApp.setActivationPolicy_(0)  # NSApplicationActivationPolicyRegular
+            NSApp.setActivationPolicy_(0)
         except ImportError:
             pass
 
-    # 加载配置
     config = load_config()
-
-    # 创建主窗口
     spotlight = SpotlightWindow(config)
 
     # macOS 权限检查
@@ -66,23 +93,19 @@ def main():
             "授权 AtHand，然后重新启动应用。",
         )
 
-    # 创建热键管理器
     hotkey = HotkeyManager()
     hotkey.triggered.connect(spotlight.toggle_visibility)
     hotkey.permission_warning.connect(
         lambda msg: QMessageBox.warning(None, "权限警告", msg)
     )
-    # 注入热键管理器，对话框打开时可暂停热键
     spotlight.set_hotkey_manager(hotkey)
     hotkey.start()
 
-    # 创建系统托盘
     tray = SystemTray(spotlight, config)
     tray.show()
 
-    # 首次启动提示
+    # 首次启动引导设置
     if not config.get("api_key"):
-        # 延迟显示，确保托盘已就绪
         from PySide6.QtCore import QTimer
         QTimer.singleShot(1000, lambda: (
             spotlight.show_window(),
@@ -90,10 +113,7 @@ def main():
         ))
 
     exit_code = app.exec()
-
-    # 清理
     hotkey.stop()
-
     sys.exit(exit_code)
 
 

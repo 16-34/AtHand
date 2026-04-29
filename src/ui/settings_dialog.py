@@ -10,11 +10,10 @@ from PySide6.QtCore import Qt, QThread, Signal
 from core.config import load_config, save_config
 from ui.styles import SETTINGS_STYLESheet, COLORS
 
-import litellm
-
 
 class ConnectionTestWorker(QThread):
     """后台测试 API 连接"""
+
     finished = Signal(bool, str)  # (success, message)
 
     def __init__(self, config: dict, parent=None):
@@ -22,6 +21,12 @@ class ConnectionTestWorker(QThread):
         self.config = config
 
     def run(self):
+        try:
+            import litellm
+        except ImportError:
+            self.finished.emit(False, "litellm 未安装")
+            return
+
         try:
             api_key = self.config.get("api_key", "")
             api_base = self.config.get("api_base", "")
