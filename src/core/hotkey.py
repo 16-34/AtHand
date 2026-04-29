@@ -22,18 +22,21 @@ class HotkeyManager(QObject):
         self._double_shift_interval = 0.3  # 秒
         self._listener = None
         self._running = False
+        self._paused = False
 
     def _on_key_press(self, key):
         """按键回调：检测双击 Shift"""
+        # 暂停期间不响应
+        if self._paused:
+            return
+
         # pynput 可能传入 Key 对象或 KeyCode 对象
         is_shift = False
         if isinstance(key, keyboard.Key):
             is_shift = key == keyboard.Key.shift
         elif isinstance(key, keyboard.KeyCode):
             is_shift = key.char in ('Shift', 'Shift_L', 'Shift_R')
-            # 某些平台上 shift 按键的 char 可能为 None
             if key.vk is not None:
-                # Windows 虚拟键码：VK_LSHIFT=0xA0, VK_RSHIFT=0xA1
                 is_shift = is_shift or key.vk in (0xA0, 0xA1)
 
         if not is_shift:
@@ -41,7 +44,7 @@ class HotkeyManager(QObject):
 
         now = time.monotonic()
         if now - self._last_shift_time < self._double_shift_interval:
-            self._last_shift_time = 0.0  # 重置，防止三击重复触发
+            self._last_shift_time = 0.0
             self.triggered.emit()
         else:
             self._last_shift_time = now
@@ -49,6 +52,16 @@ class HotkeyManager(QObject):
     def _on_key_release(self, key):
         """按键释放回调（不做处理，仅用于完整监听）"""
         pass
+
+    def pause(self):
+        """暂停热键响应（对话框打开时使用）"""
+        self._paused = True
+        self._last_shift_time = 0.0
+
+    def resume(self):
+        """恢复热键响应"""
+        self._paused = False
+        self._last_shift_time = 0.0
 
     def start(self):
         """启动热键监听"""

@@ -35,6 +35,7 @@ class SpotlightWindow(QWidget):
         self.setObjectName("spotlight")
         self._is_visible = False
         self._answer_expanded = False
+        self._hotkey_manager = None  # 由 main.py 注入
 
         # 会话管理
         self.chat_session = ChatSession(self.config)
@@ -191,10 +192,21 @@ class SpotlightWindow(QWidget):
         self.setFixedHeight(self._collapsed_height)
         self.hide()
 
+    def set_hotkey_manager(self, manager):
+        """注入热键管理器，用于在对话框打开时暂停热键"""
+        self._hotkey_manager = manager
+
     def show_settings(self):
         """打开设置界面"""
+        # 暂停热键监听，防止对话框中打字触发双击 Shift
+        if self._hotkey_manager:
+            self._hotkey_manager.pause()
         dialog = SettingsDialog(self.config, self)
-        if dialog.exec() == SettingsDialog.DialogCode.Accepted:
+        result = dialog.exec()
+        # 恢复热键监听
+        if self._hotkey_manager:
+            self._hotkey_manager.resume()
+        if result == SettingsDialog.DialogCode.Accepted:
             self.config = load_config()
             self.chat_session.update_config(self.config)
             self.settings_changed.emit(self.config)

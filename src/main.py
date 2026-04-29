@@ -72,6 +72,8 @@ def main():
     hotkey.permission_warning.connect(
         lambda msg: QMessageBox.warning(None, "权限警告", msg)
     )
+    # 注入热键管理器，对话框打开时可暂停热键
+    spotlight.set_hotkey_manager(hotkey)
     hotkey.start()
 
     # 创建系统托盘
