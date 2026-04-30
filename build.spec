@@ -26,7 +26,7 @@ a = Analysis(
         "pynput.mouse._darwin",
         "pynput.mouse._win32",
         "pynput.mouse._xorg",
-        "litellm",
+        "openai",
     ],
     hookspath=[],
     hooksconfig={},
@@ -39,7 +39,6 @@ a = Analysis(
 )
 
 pyqtbinary = []
-pyqtdata = []
 
 # PySide6 插件
 pyside6_dir = os.path.dirname(QLibraryInfo.path(QLibraryInfo.LibraryPath.PluginsPath))
@@ -48,25 +47,38 @@ for root, dirs, files in os.walk(pyside6_dir):
         if f.endswith((".dll", ".so", ".dylib")):
             src_file = os.path.join(root, f)
             rel_path = os.path.relpath(src_file, pyside6_dir)
-            pyqtbinary.append((src_file, os.path.join("PySide6", rel_path)))
+            pyqtbinary.append((os.path.join("PySide6", rel_path), src_file, "BINARY"))
 
-coll = COLLECT(
-    EXE(
-        PYZ(a.pure, a.zipped_data, cipher=block_cipher),
-        a.binaries + pyqtbinary,
-        a.zipfiles,
-        a.datas,
-        [],
-        name="AtHand",
-        debug=False,
-        bootloader_ignore_signals=False,
-        strip=False,
-        upx=True,
-        console=False,
-        icon=os.path.join(src_path, "resources", "icon.icns") if sys.platform == "darwin" else None,
-    ),
+pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    a.binaries + pyqtbinary,
     a.zipfiles,
     a.datas,
     [],
     name="AtHand",
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    runtime_tmpdir=None,
+    console=False,
+    disable_windowed_traceback=False,
+    argv_emulation=True,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+    icon=os.path.join(src_path, "resources", "icon.png"),
 )
+
+# macOS: 创建 .app bundle
+if sys.platform == "darwin":
+    app = BUNDLE(
+        exe,
+        name="AtHand.app",
+        icon=os.path.join(src_path, "resources", "icon.png"),
+        bundle_identifier="com.athand.app",
+    )
