@@ -1,0 +1,27 @@
+[package]
+name = "athand"
+version = "0.1.0"
+description = "全局快捷键 AI 助手"
+authors = ["you"]
+license = ""
+repository = ""
+edition = "2021"
+rust-version = "1.70"
+
+[build-dependencies]
+tauri-build = { version = "1.5", features = [] }
+
+[dependencies]
+tauri = { version = "1.5", features = [ "window-close", "window-center", "window-set-decorations", "window-show", "window-set-size", "window-set-position", "window-hide", "global-shortcut-all", "window-set-always-on-top", "shell-open", "system-tray", "global-shortcut"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.35", features = ["full"] }
+reqwest = { version = "0.11", features = ["json", "stream"] }
+futures = "0.3"
+dirs = "5.0"
+chrono = "0.4"
+rdev = "0.5"  # 全局热键监听（双击 Shift）
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
