@@ -11,6 +11,10 @@ const searchBar = document.getElementById('search-bar');
 const statusText = document.getElementById('status-text');
 const hintText = document.getElementById('hint-text');
 
+const compactSize = new LogicalSize(656, 68);
+const answerSize = new LogicalSize(656, 500);
+const settingsSize = new LogicalSize(656, 620);
+
 // Settings Dialog Elements
 const settingsOverlay = document.getElementById('settings-overlay');
 const apiBaseInput = document.getElementById('api-base');
@@ -34,6 +38,11 @@ async function init() {
   await loadConfig();
   setupEventListeners();
   setupKeyboardShortcuts();
+
+  if (!config.api_key) {
+    await showSettings();
+  }
+
   searchInput.focus();
 }
 
@@ -63,7 +72,9 @@ function setupEventListeners() {
   });
 
   // Settings button
-  settingsBtn.addEventListener('click', showSettings);
+  settingsBtn.addEventListener('click', () => {
+    void showSettings();
+  });
 
   // Temperature slider
   temperatureInput.addEventListener('input', (e) => {
@@ -120,18 +131,20 @@ function setupEventListeners() {
     try {
       await invoke('save_config', { newConfig });
       config = newConfig;
-      hideSettings();
+      await hideSettings();
     } catch (e) {
       alert('保存失败: ' + e);
     }
   });
 
   // Cancel settings
-  cancelBtn.addEventListener('click', hideSettings);
+  cancelBtn.addEventListener('click', () => {
+    void hideSettings();
+  });
 
   // Listen for show-settings event from Rust
-  listen('show-settings', () => {
-    showSettings();
+  listen('show-settings', async () => {
+    await showSettings();
   });
 }
 
@@ -139,9 +152,9 @@ function setupKeyboardShortcuts() {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if (settingsOverlay.classList.contains('visible')) {
-        hideSettings();
+        void hideSettings();
       } else {
-        hideWindow();
+        void hideWindow();
       }
     }
   });
@@ -173,7 +186,7 @@ async function sendMessage(query) {
   hintText.style.display = 'none';
   
   // Resize window for answer
-    await appWindow.setSize(new LogicalSize(656, 500));
+  await appWindow.setSize(answerSize);
   
   try {
     statusText.textContent = '回答中...';
@@ -213,16 +226,22 @@ async function sendMessage(query) {
   searchInput.focus();
 }
 
-function showSettings() {
+async function showSettings() {
+  await appWindow.setSize(settingsSize);
+  await appWindow.center();
   settingsOverlay.classList.add('visible');
 }
 
-function hideSettings() {
+async function hideSettings() {
   settingsOverlay.classList.remove('visible');
+  await appWindow.setSize(answerPanel.classList.contains('visible') ? answerSize : compactSize);
+  await appWindow.center();
   searchInput.focus();
 }
 
 async function hideWindow() {
+  await appWindow.hide();
+
   // Clear conversation
   answerContent.innerHTML = '';
   answerPanel.classList.remove('visible');
@@ -231,10 +250,8 @@ async function hideWindow() {
   statusText.textContent = '';
   
   // Reset window size
-  await appWindow.setSize(new LogicalSize(656, 68));
-  
-  // Hide window
-  await appWindow.hide();
+  settingsOverlay.classList.remove('visible');
+  await appWindow.setSize(compactSize);
 }
 
 function escapeHtml(text) {
